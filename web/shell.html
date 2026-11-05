@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Gridline is an offline spreadsheet with a C++ calculation engine.">
+  <title>Gridline — Spreadsheet</title>
+  <style>/* INLINE_STYLES */</style>
+</head>
+<body>
+  <header class="titlebar">
+    <div class="brand" aria-label="Gridline">
+      <span class="brand-mark" data-icon="grid"></span>
+      <span>Gridline</span>
+    </div>
+    <div class="quick-tools" aria-label="Quick access">
+      <button type="button" data-action="save" title="Save workbook (Ctrl+S)" aria-label="Save workbook" data-icon="save"></button>
+      <button type="button" data-action="undo" title="Undo (Ctrl+Z)" aria-label="Undo" data-icon="undo"></button>
+      <button type="button" data-action="redo" title="Redo (Ctrl+Y)" aria-label="Redo" data-icon="redo"></button>
+    </div>
+    <button type="button" id="workbook-title" data-action="rename-workbook" title="Rename workbook"></button>
+    <div class="title-tools">
+      <span class="engine-badge"><span></span><span id="engine-state">Starting engine</span></span>
+      <button type="button" data-action="help" title="Help and shortcuts" aria-label="Help" data-icon="help"></button>
+    </div>
+  </header>
+
+  <nav id="ribbon-tabs" class="ribbon-tabs" aria-label="Ribbon tabs">
+    <button type="button" data-action="file" class="file-tab" popovertarget="file-menu" aria-controls="file-menu" aria-expanded="false"><span data-icon="file"></span>File</button>
+    <button type="button" id="save-source" data-action="save-source" title="Save changes to the open file" hidden disabled><span data-icon="save"></span>Save</button>
+    <button type="button" data-ribbon="Home" aria-pressed="true">Home</button>
+    <button type="button" data-ribbon="Insert" aria-pressed="false">Insert</button>
+    <button type="button" data-ribbon="Formulas" aria-pressed="false">Formulas</button>
+    <button type="button" data-ribbon="Data" aria-pressed="false">Data</button>
+    <button type="button" data-ribbon="View" aria-pressed="false">View</button>
+    <button type="button" id="collapse-ribbon" data-action="toggle-ribbon" title="Collapse ribbon" aria-label="Collapse ribbon" data-icon="chevron-up" aria-expanded="true"></button>
+  </nav>
+  <div id="ribbon" class="ribbon" role="region" aria-label="Home ribbon"></div>
+
+  <section class="formula-strip" aria-label="Formula bar">
+    <label class="name-box" title="Enter an address or range, then press Enter">
+      <input id="name-box" aria-label="Name box" autocomplete="off" spellcheck="false" value="A1">
+      <span data-icon="chevron-down" aria-hidden="true"></span>
+    </label>
+    <div class="formula-tools">
+      <button type="button" data-action="cancel-edit" aria-label="Cancel editing" title="Cancel editing (Esc)" data-icon="close" disabled></button>
+      <button type="button" data-action="accept-edit" aria-label="Accept edit" title="Accept edit (Enter)" data-icon="check" disabled></button>
+      <button type="button" class="fx-button" data-action="functions" title="Insert function" aria-label="Insert function">ƒx</button>
+    </div>
+    <input id="formula" aria-label="Formula and cell contents" autocomplete="off" spellcheck="false" disabled>
+  </section>
+
+  <main class="workspace" aria-label="Worksheet">
+    <div id="viewport">
+      <canvas id="grid" tabindex="0" role="grid" aria-label="Worksheet grid"
+        aria-rowcount="8000000" aria-colcount="400" aria-activedescendant="active-cell"></canvas>
+      <div id="active-cell" class="sr-only" role="gridcell" aria-rowindex="1" aria-colindex="1">A1</div>
+      <textarea id="cell-editor" aria-label="Edit active cell" spellcheck="false" hidden></textarea>
+      <section id="chart-view" aria-label="Chart worksheet" hidden>
+        <div class="chart-card">
+          <div class="chart-heading">
+            <div><h1 id="chart-title"></h1><p id="chart-source"></p></div>
+            <div class="chart-actions">
+              <button type="button" id="chart-back" data-action="chart-close" class="chart-edit" hidden><span data-icon="chevron-left"></span>Back to worksheet</button>
+              <button type="button" data-action="chart-edit" class="chart-edit"><span data-icon="width"></span>Edit chart</button>
+            </div>
+          </div>
+          <div id="chart-controls" aria-label="Chart display options"></div>
+          <div id="chart-legend" aria-label="Chart legend"></div>
+          <div id="chart-equation" aria-label="Trendline equation" hidden></div>
+          <div id="chart-plot">
+            <canvas id="chart-marks" role="img" aria-labelledby="chart-title"></canvas>
+            <svg id="chart-labels" aria-hidden="true"></svg>
+            <p id="chart-message" role="status" hidden></p>
+            <div id="chart-tooltip" hidden></div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div id="vertical-scroll" class="scrollbar vertical" role="scrollbar" tabindex="0"
+      aria-label="Vertical worksheet scroll" aria-controls="grid" aria-orientation="vertical"
+      aria-valuemin="1" aria-valuemax="8000000" aria-valuenow="1"><div class="thumb"></div></div>
+    <div class="sheet-footer">
+      <div class="sheet-nav">
+        <button type="button" data-action="previous-sheet" title="Previous sheet" aria-label="Previous sheet" data-icon="chevron-left"></button>
+        <button type="button" data-action="next-sheet" title="Next sheet" aria-label="Next sheet" data-icon="chevron-right"></button>
+      </div>
+      <div id="sheet-tabs" role="tablist" aria-label="Worksheets"></div>
+      <button type="button" class="add-sheet" data-action="add-sheet" title="New sheet" aria-label="New sheet" data-icon="plus"></button>
+      <div id="horizontal-scroll" class="scrollbar horizontal" role="scrollbar" tabindex="0"
+        aria-label="Horizontal worksheet scroll" aria-controls="grid" aria-orientation="horizontal"
+        aria-valuemin="1" aria-valuemax="400" aria-valuenow="1"><div class="thumb"></div></div>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <span id="status" role="status"><span class="ready-dot"></span>Ready</span>
+    <button type="button" id="table-suggestion" data-action="table-select" hidden></button>
+    <span id="selection-summary"></span>
+    <span class="dimensions" title="Addressable worksheet dimensions">8,000,000 rows <span>×</span> 400 columns</span>
+    <div class="zoom-tools" aria-label="Zoom controls">
+      <button type="button" data-action="zoom-out" title="Zoom out" aria-label="Zoom out" data-icon="minus"></button>
+      <input id="zoom-slider" type="range" min="60" max="160" step="5" value="100" aria-label="Worksheet zoom">
+      <button type="button" data-action="zoom-in" title="Zoom in" aria-label="Zoom in" data-icon="plus"></button>
+      <button type="button" id="zoom-value" data-action="zoom-reset" title="Reset zoom">100%</button>
+    </div>
+  </footer>
+
+  <div id="grid-menu" popover="auto" role="group" aria-label="Worksheet commands"></div>
+  <div id="file-menu" popover="auto" role="group" aria-label="File commands"></div>
+  <div id="cell-color-palette" popover="auto" role="dialog" aria-label="Cell color"></div>
+  <dialog id="dialog" aria-labelledby="dialog-title">
+    <div class="dialog-header">
+      <h1 id="dialog-title"></h1>
+      <button type="button" data-action="close-dialog" title="Close" aria-label="Close dialog" data-icon="close"></button>
+    </div>
+    <div id="dialog-content"></div>
+  </dialog>
+  <input id="open-file" type="file" accept=".gridline,.xlsx" hidden>
+  <input id="import-file" type="file" accept=".csv,.tsv,.txt,.text,.prn,.dat,.log,text/csv,text/tab-separated-values,text/plain" hidden>
+  <input id="image-file" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,.avif,.ico" hidden>
+  <noscript>Gridline requires JavaScript and WebAssembly. Enable JavaScript and reopen this file.</noscript>
+  <script type="application/octet-stream" id="engine-wasm">INLINE_WASM</script>
+  <script>/* INLINE_THREE */</script>
+  <script>/* INLINE_SCRIPTS */</script>
+  <script type="text/plain" id="gridline-licenses">INLINE_LICENSES</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "name": "gridline",
+  "displayName": "Gridline",
+  "description": "An offline spreadsheet editor for local workbooks and delimited text.",
+  "version": "0.1.0",
+  "publisher": "jcdulas",
+  "license": "BSD-3-Clause",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": ["Other"],
+  "extensionKind": ["ui"],
+  "main": "./extension.js",
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Gridline runs in local, trusted workspaces."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "gridline.configureFileAssociations",
+        "category": "Gridline",
+        "title": "Configure File Associations"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "gridline.workbook",
+        "displayName": "Gridline",
+        "selector": [
+          { "filenamePattern": "*.[xX][lL][sS][xX]" },
+          { "filenamePattern": "*.[gG][rR][iI][dD][lL][iI][nN][eE]" },
+          { "filenamePattern": "*.[cC][sS][vV]" },
+          { "filenamePattern": "*.[tT][sS][vV]" },
+          { "filenamePattern": "*.[tT][xX][tT]" },
+          { "filenamePattern": "*.[tT][eE][xX][tT]" },
+          { "filenamePattern": "*.[pP][rR][nN]" },
+          { "filenamePattern": "*.[dD][aA][tT]" },
+          { "filenamePattern": "*.[lL][oO][gG]" }
+        ],
+        "priority": "option"
+      }
+    ]
+  }
+}
