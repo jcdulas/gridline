@@ -73,7 +73,7 @@ function colorRibbonButton(action, label, symbol) {
 function ribbonRow(...controls) { return `<div class="ribbon-row">${controls.join("")}</div>`; }
 function ribbonStack(...rows) { return `<div class="ribbon-stack">${rows.join("")}</div>`; }
 function ribbonGroup(label, ...controls) {
-  return `<section class="ribbon-group" aria-label="${label}"><div class="ribbon-controls">${controls.join("")}</div><div class="ribbon-label">${label}</div></section>`;
+  return `<section class="ribbon-group" aria-label="${label}"><div class="ribbon-controls">${controls.join("")}</div></section>`;
 }
 
 const fonts = ["Segoe UI", "Arial", "Calibri", "Georgia", "Consolas"];

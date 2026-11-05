@@ -163,7 +163,7 @@ async function writeXlsxPivot(zip, engine, sheets, entry) {
       list("items", items) + "</pivotField>";
   });
   const axisField = (column) => `<field x="${column - left}"/>`;
-  const tableXml = xmlHeader + `<pivotTableDefinition xmlns="${sheetNamespace}" name="GridlinePivot${entry.id}" cacheId="${entry.id}"` +
+  const tableXml = xmlHeader + `<pivotTableDefinition xmlns="${sheetNamespace}" name="GridsNTabsPivot${entry.id}" cacheId="${entry.id}"` +
     ' dataCaption="Values" createdVersion="6" updatedVersion="6" minRefreshableVersion="3" compact="0" compactData="0" indent="0">' +
     `<location ref="A${display.top + 1}:${cellName(display.top + display.height - 1, display.width - 1)}" firstHeaderRow="1"` +
     ` firstDataRow="${display.firstDataRow}" firstDataCol="${display.firstDataCol}"${filter ? ' rowPageCount="1" colPageCount="1"' : ""}/>` +

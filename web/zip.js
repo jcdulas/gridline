@@ -9,7 +9,9 @@ const crcTable = Uint32Array.from({ length: 256 }, (_, value) => {
 });
 
 function updateCrc(crc, bytes) {
-  for (const byte of bytes) crc = (crc >>> 8) ^ crcTable[(crc ^ byte) & 255];
+  for (let index = 0; index < bytes.length; index++) {
+    crc = (crc >>> 8) ^ crcTable[(crc ^ bytes[index]) & 255];
+  }
   return crc;
 }
 

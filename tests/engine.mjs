@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const document = await readFile(new URL("../gridline.html", import.meta.url), "utf8");
+const document = await readFile(new URL("../gridsntabs.html", import.meta.url), "utf8");
 const payload = /id="engine-wasm">([A-Za-z0-9+/=]+)<\/script>/.exec(document);
 assert.ok(payload, "The deliverable embeds WebAssembly");
 const { instance } = await WebAssembly.instantiate(Buffer.from(payload[1], "base64"), {

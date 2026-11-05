@@ -47,7 +47,7 @@ function yieldToBrowser() { return new Promise((resolve) => setTimeout(resolve, 
 async function saveWorkbook(engine, title, sheets, overwrite = false) {
   const output = new TextChunks();
   const append = (record) => output.append(JSON.stringify(record) + "\n");
-  append({ format: "gridline", version: 1, title, date1904: engine.date1904 });
+  append({ format: "gridsntabs", version: 1, title, date1904: engine.date1904 });
   let count = 0;
   for (const sheet of sheets) {
     append(["sheet", sheet.name, [...sheet.widths], [...sheet.heights],
@@ -65,7 +65,7 @@ async function saveWorkbook(engine, title, sheets, overwrite = false) {
       if (++count % 32768 === 0) await yieldToBrowser();
     }
   }
-  return output.download(filename(title) + ".gridline", "application/x-ndjson;charset=utf-8", "utf-8", false, overwrite);
+  return output.download(filename(title) + ".gridsntabs", "application/x-ndjson;charset=utf-8", "utf-8", false, overwrite);
 }
 
 async function* fileLines(file) {
@@ -130,10 +130,10 @@ async function openWorkbook(file) {
     if (!line.trim()) continue;
     let record;
     try { record = JSON.parse(line); }
-    catch { throw new Error("This file is not a valid Gridline workbook."); }
+    catch { throw new Error("This file is not a valid Grids&Tabs workbook."); }
     if (title === "") {
-      if (record?.format !== "gridline" || record.version !== 1 || typeof record.title !== "string") {
-        throw new Error("This file is not a supported Gridline workbook.");
+      if (record?.format !== "gridsntabs" || record.version !== 1 || typeof record.title !== "string") {
+        throw new Error("This file is not a supported Grids&Tabs workbook.");
       }
       title = record.title.trim().slice(0, 120) || "Workbook";
       date1904 = record.date1904;
@@ -389,7 +389,7 @@ async function exportCsv(engine, sheet, bounds) {
   }
   const { top, bottom, left, right } = bounds;
   if ((bottom - top + 1) * (right - left + 1) > 12_000_000) {
-    throw new Error("Select a smaller range for CSV, or save the sparse workbook as a Gridline file.");
+    throw new Error("Select a smaller range for CSV, or save the sparse workbook as a Grids&Tabs file.");
   }
   const output = new TextChunks();
   for (let row = top; row <= bottom; row++) {

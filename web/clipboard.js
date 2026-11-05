@@ -14,12 +14,12 @@ function clipboardWorker() {
   };
 }
 
-class GridlineClipboard {
+class GridsNTabsClipboard {
   constructor() {
-    this.name = "gridline-clipboard-v1:" + location.pathname;
+    this.name = "gridsntabs-clipboard-v1:" + location.pathname;
     this.latest = null;
     this.request = 0;
-    if (gridlineHost) return;
+    if (gridsNTabsHost) return;
     try {
       const url = "data:text/javascript;charset=utf-8," + encodeURIComponent(`(${clipboardWorker.toString()})();`);
       const worker = new SharedWorker(url, this.name);
@@ -113,10 +113,10 @@ function clipboardCellHtml(text, style) {
   if (style?.font) css.push("font-family:" + style.font);
   if (style?.size) css.push("font-size:" + style.size + "px");
   if (style?.align) css.push("text-align:" + style.align);
-  // The inline CSS is portable. The original input and style preserve Gridline
+  // The inline CSS is portable. The original input and style preserve Grids&Tabs
   // formulas, number formats, and values that HTML would otherwise normalize.
   const cell = xmlEscape(JSON.stringify([text, style ?? null]));
-  return `<td data-gridline-cell="${cell}"${css.length ? ` style="${xmlEscape(css.join(";"))}"` : ""}>${xmlEscape(text)}</td>`;
+  return `<td data-gridsntabs-cell="${cell}"${css.length ? ` style="${xmlEscape(css.join(";"))}"` : ""}>${xmlEscape(text)}</td>`;
 }
 
 function clipboardCssColor(value) {
@@ -130,7 +130,7 @@ function clipboardCssColor(value) {
 }
 
 function readClipboardCell(cell, classes) {
-  const original = cell.getAttribute("data-gridline-cell");
+  const original = cell.getAttribute("data-gridsntabs-cell");
   if (original) {
     try {
       const [text, style] = JSON.parse(original);
@@ -202,7 +202,7 @@ async function writeSystemClipboard(clipboard, { text, html }) {
 
 async function readSystemClipboard(clipboard) {
   if (!clipboard.read) return { text: await clipboard.readText() };
-  // Preserve spreadsheet class rules and Gridline metadata for inert parsing.
+  // Preserve spreadsheet class rules and Grids&Tabs metadata for inert parsing.
   const items = await clipboard.read({ unsanitized: ["text/html"] });
   const item = items.find(({ types }) => types.includes("text/html") || types.includes("text/plain"));
   if (!item) return null;

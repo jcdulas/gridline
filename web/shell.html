@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Gridline is an offline spreadsheet with a C++ calculation engine.">
-  <title>Gridline — Spreadsheet</title>
+  <meta name="description" content="Grids&amp;Tabs is an offline spreadsheet with a C++ calculation engine.">
+  <title>Grids&amp;Tabs — Spreadsheet</title>
   <style>/* INLINE_STYLES */</style>
 </head>
 <body>
   <header class="titlebar">
-    <div class="brand" aria-label="Gridline">
+    <div class="brand" aria-label="Grids&amp;Tabs">
       <span class="brand-mark" data-icon="grid"></span>
-      <span>Gridline</span>
+      <span>Grids&amp;Tabs</span>
     </div>
     <div class="quick-tools" aria-label="Quick access">
       <button type="button" data-action="save" title="Save workbook (Ctrl+S)" aria-label="Save workbook" data-icon="save"></button>
@@ -47,7 +47,10 @@
       <button type="button" data-action="accept-edit" aria-label="Accept edit" title="Accept edit (Enter)" data-icon="check" disabled></button>
       <button type="button" class="fx-button" data-action="functions" title="Insert function" aria-label="Insert function">ƒx</button>
     </div>
-    <input id="formula" aria-label="Formula and cell contents" autocomplete="off" spellcheck="false" disabled>
+    <div class="formula-field">
+      <input id="formula" aria-label="Formula and cell contents" autocomplete="off" spellcheck="false" disabled>
+      <div id="formula-preview" class="formula-preview" aria-hidden="true" hidden></div>
+    </div>
   </section>
 
   <main class="workspace" aria-label="Worksheet">
@@ -56,6 +59,7 @@
         aria-rowcount="8000000" aria-colcount="400" aria-activedescendant="active-cell"></canvas>
       <div id="active-cell" class="sr-only" role="gridcell" aria-rowindex="1" aria-colindex="1">A1</div>
       <textarea id="cell-editor" aria-label="Edit active cell" spellcheck="false" hidden></textarea>
+      <div id="cell-editor-preview" class="formula-preview" aria-hidden="true" hidden></div>
       <section id="chart-view" aria-label="Chart worksheet" hidden>
         <div class="chart-card">
           <div class="chart-heading">
@@ -93,18 +97,7 @@
     </div>
   </main>
 
-  <footer class="statusbar">
-    <span id="status" role="status"><span class="ready-dot"></span>Ready</span>
-    <button type="button" id="table-suggestion" data-action="table-select" hidden></button>
-    <span id="selection-summary"></span>
-    <span class="dimensions" title="Addressable worksheet dimensions">8,000,000 rows <span>×</span> 400 columns</span>
-    <div class="zoom-tools" aria-label="Zoom controls">
-      <button type="button" data-action="zoom-out" title="Zoom out" aria-label="Zoom out" data-icon="minus"></button>
-      <input id="zoom-slider" type="range" min="60" max="160" step="5" value="100" aria-label="Worksheet zoom">
-      <button type="button" data-action="zoom-in" title="Zoom in" aria-label="Zoom in" data-icon="plus"></button>
-      <button type="button" id="zoom-value" data-action="zoom-reset" title="Reset zoom">100%</button>
-    </div>
-  </footer>
+  <div id="status" role="status">Ready</div>
 
   <div id="grid-menu" popover="auto" role="group" aria-label="Worksheet commands"></div>
   <div id="file-menu" popover="auto" role="group" aria-label="File commands"></div>
@@ -116,13 +109,13 @@
     </div>
     <div id="dialog-content"></div>
   </dialog>
-  <input id="open-file" type="file" accept=".gridline,.xlsx" hidden>
+  <input id="open-file" type="file" accept=".gridsntabs,.xlsx" hidden>
   <input id="import-file" type="file" accept=".csv,.tsv,.txt,.text,.prn,.dat,.log,text/csv,text/tab-separated-values,text/plain" hidden>
   <input id="image-file" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,.avif,.ico" hidden>
-  <noscript>Gridline requires JavaScript and WebAssembly. Enable JavaScript and reopen this file.</noscript>
+  <noscript>Grids&amp;Tabs requires JavaScript and WebAssembly. Enable JavaScript and reopen this file.</noscript>
   <script type="application/octet-stream" id="engine-wasm">INLINE_WASM</script>
   <script>/* INLINE_THREE */</script>
   <script>/* INLINE_SCRIPTS */</script>
-  <script type="text/plain" id="gridline-licenses">INLINE_LICENSES</script>
+  <script type="text/plain" id="gridsntabs-licenses">INLINE_LICENSES</script>
 </body>
 </html>

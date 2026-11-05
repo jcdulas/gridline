@@ -1,6 +1,6 @@
-const xlsxSpatialNamespace = "urn:gridline:spatial-charts:1";
-const xlsxSpatialPart = "customXml/gridlineCharts.xml";
-const xlsxSpatialProperties = "customXml/gridlineChartProps.xml";
+const xlsxSpatialNamespace = "urn:gridsntabs:spatial-charts:1";
+const xlsxSpatialPart = "customXml/gridsTabsCharts.xml";
+const xlsxSpatialProperties = "customXml/gridsTabsChartProps.xml";
 
 function xlsxSpatialAngles(chart) {
   const degrees = (radians) => Math.round(radians * 180 / Math.PI);
@@ -46,15 +46,15 @@ function planXlsxSpatialCharts(engine, sheets, entries) {
     entry.charts = entry.charts.map((object, index) => {
       if (!chart3dTypes.has(object.chart.type)) return object;
       const { chart } = object;
-      const marker = `Gridline3D-${entry.id}-${index + 1}`;
+      const marker = `GridsNTabs3D-${entry.id}-${index + 1}`;
       const source = sheets.find(({ name }) => name === chart.sourceSheet);
       let native;
       try { native = xlsxSpatialGrid(engine, source, chart); }
       catch { /* The image export can still show the chart or its error message. */ }
       if (native) {
         let suffix = helpers.length + 1;
-        while (names.has(`GRIDLINE 3D DATA ${suffix}`)) suffix++;
-        native.helper = `Gridline 3D Data ${suffix}`;
+        while (names.has(`GRIDSNTABS 3D DATA ${suffix}`)) suffix++;
+        native.helper = `GridsNTabs 3D Data ${suffix}`;
         names.add(native.helper.toUpperCase());
         const id = entries.length + helpers.length + 1;
         helpers.push({ id, path: `worksheets/sheet${id}.xml`, sheet: { name: native.helper }, helper: native });
@@ -98,14 +98,14 @@ async function readXlsxSpatialMetadata(zip, relations) {
       }
       for (const item of children(xml, "chart")) {
         const marker = item.getAttribute("marker");
-        if (!/^Gridline3D-\d+-\d+$/.test(marker)) continue;
+        if (!/^GridsNTabs3D-\d+-\d+$/.test(marker)) continue;
         try {
           const { chart, native } = JSON.parse(item.textContent);
           charts.set(marker, { chart, native, chartSheet: item.getAttribute("chartSheet") === "1" });
         }
         catch { /* Keep the drawing if this particular chart has invalid metadata. */ }
       }
-    } catch { /* Other custom XML parts are outside Gridline's chart format. */ }
+    } catch { /* Other custom XML parts are outside Grids&Tabs's chart format. */ }
   }
   return { charts, helpers };
 }

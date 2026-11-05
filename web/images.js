@@ -133,15 +133,20 @@ function drawWorksheetObjects(view) {
 }
 
 function bindFileDrops(app) {
-  const hasFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
-  document.addEventListener("dragover", (event) => {
-    if (!hasFiles(event)) return;
+  const claimFiles = (event) => {
+    if (!Array.from(event.dataTransfer?.types || []).includes("Files")) return false;
     event.preventDefault();
+    // VS Code otherwise forwards this drag to its editor drop overlay.
+    if (gridsNTabsHost) event.stopPropagation();
+    return true;
+  };
+  document.addEventListener("dragenter", claimFiles);
+  document.addEventListener("dragover", (event) => {
+    if (!claimFiles(event)) return;
     event.dataTransfer.dropEffect = app.busy ? "none" : "copy";
   });
   document.addEventListener("drop", (event) => {
-    if (!hasFiles(event)) return;
-    event.preventDefault();
+    if (!claimFiles(event)) return;
     if (app.busy || app.dialog.open || !app.commitEdit()) return;
     const files = Array.from(event.dataTransfer.files);
     if (files.length !== 1) {
@@ -150,7 +155,7 @@ function bindFileDrops(app) {
     }
     const [file] = files;
     const image = imageDropPattern.test(file.name) || /^image\/(png|jpeg|gif|webp|bmp|avif|x-icon)$/i.test(file.type);
-    if (/\.(xlsx|gridline)$/i.test(file.name)) {
+    if (/\.(xlsx|gridsntabs)$/i.test(file.name)) {
       app.confirmDiscard(() => { void app.openLocalFile(file); });
     } else if (declaredDelimiter(file) || (!image && isTextImportCandidate(file))) {
       void app.importLocalFile(file);

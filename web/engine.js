@@ -21,14 +21,29 @@ class WorkbookEngine {
     this.rows = wasm.workbook_rows();
     this.columns = wasm.workbook_columns();
     this.inputLimit = wasm.workbook_input_limit();
+    this.inputPointer = wasm.workbook_input();
+    this.inputBytes = new Uint8Array(wasm.memory.buffer, this.inputPointer, this.inputLimit);
     this.encoder = new TextEncoder();
     this.decoder = new TextDecoder();
     this.setDateSystem(false);
   }
 
   write(text) {
-    const bytes = new Uint8Array(this.wasm.memory.buffer, this.wasm.workbook_input(), this.inputLimit);
-    const { read, written } = this.encoder.encodeInto(text, bytes);
+    const memory = this.wasm.memory.buffer;
+    if (this.inputBytes.buffer !== memory) {
+      this.inputBytes = new Uint8Array(memory, this.inputPointer, this.inputLimit);
+    }
+    // Short ASCII values can be copied directly into the engine's input buffer.
+    if (text.length <= 64) {
+      let index = 0;
+      for (; index < text.length; index++) {
+        const character = text.charCodeAt(index);
+        if (character > 127) break;
+        this.inputBytes[index] = character;
+      }
+      if (index === text.length) return index;
+    }
+    const { read, written } = this.encoder.encodeInto(text, this.inputBytes);
     if (read !== text.length) throw new Error("A cell can contain at most 65,536 UTF-8 bytes.");
     return written;
   }

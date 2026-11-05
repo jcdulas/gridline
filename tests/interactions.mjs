@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { BroadcastChannel, MessageChannel } from "node:worker_threads";
 import vm from "node:vm";
 
-const html = await readFile(new URL("../gridline.html", import.meta.url), "utf8");
+const html = await readFile(new URL("../gridsntabs.html", import.meta.url), "utf8");
 const [wasm, , script] = [...html.matchAll(/<script(?:[^>]*)>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
 
 // Simulate the browser creating a shared scope and connecting separate ports.
@@ -27,14 +27,14 @@ class SharedWorker {
 
 const context = vm.createContext({
   WebAssembly, TextEncoder, TextDecoder, Blob, atob, assert, setTimeout, clearTimeout, clearInterval,
-  SharedWorker, BroadcastChannel, location: { pathname: "/gridline.html" },
+  SharedWorker, BroadcastChannel, location: { pathname: "/gridsntabs.html" },
   performance, navigator: {}, document: { getElementById: () => ({ textContent: wasm }) }
 });
 const definitions = script.slice(0, script.lastIndexOf("initializeIcons(document);"));
 await vm.runInContext(definitions + `
 (async () => {
-  const first = new GridlineClipboard();
-  const second = new GridlineClipboard();
+  const first = new GridsNTabsClipboard();
+  const second = new GridsNTabsClipboard();
   try {
     first.write({ text: "1\\t2", html: "<table></table>" });
     assert.equal((await first.read()).text, "1\\t2");
@@ -45,14 +45,24 @@ await vm.runInContext(definitions + `
   } finally { first.port?.close(); second.port?.close(); }
 
   globalThis.SharedWorker = undefined;
-  const original = new GridlineClipboard();
+  const original = new GridsNTabsClipboard();
   original.write({ text: "5\\t6", html: "<table><tr><td>5</td><td>6</td></tr></table>" });
-  const otherWindow = new GridlineClipboard();
+  const otherWindow = new GridsNTabsClipboard();
   try { assert.match((await otherWindow.read()).html, /<td>6/); }
   finally { original.channel?.close(); otherWindow.channel?.close(); }
 
   const engine = await WorkbookEngine.load();
   const sheet = newSheetModel(engine.addSheet("References"), "References");
+  const expression = \`=SUM($B$1:B2,B1:B2,"C3",A:A,2:3,'Other sheet'!C1)\`;
+  const references = formulaReferences(expression, sheet.name, engine);
+  assert.equal(JSON.stringify(references.map(({ start, end }) => expression.slice(start, end))),
+    JSON.stringify(["$B$1:B2", "B1:B2", "A:A", "2:3", "'Other sheet'!C1"]));
+  assert.equal(references[0].color, references[1].color);
+  assert.equal(references[0].bounds.bottom, 1);
+  assert.equal(references[1].bounds, null);
+  assert.equal(references[2].bounds.bottom, engine.rows - 1);
+  assert.equal(references[3].bounds.right, engine.columns - 1);
+  assert.equal(references[4].bounds, null);
   engine.set(sheet.id, 0, 1, "7");
   engine.set(sheet.id, 1, 1, "8");
   const cell = { row: 0, column: 0 };
@@ -66,10 +76,11 @@ await vm.runInContext(definitions + `
     requestDraw() {},
     visibleRows: [], visibleColumns: []
   };
-  const app = Object.assign(Object.create(GridlineApp.prototype), {
+  const app = Object.assign(Object.create(GridsNTabsApp.prototype), {
     engine, sheet, canvas, view, formula: input("=SUM("), editor: input(""),
     edit: { mode: "formula", cell, original: "" }, dialog: { open: false },
     setEditing() {}, refreshSelection() {}, status() {},
+    refreshFormulaColors() { this.formulaReferences = formulaReferences(this.formula.value, sheet.name, engine); },
     change(patches) {
       for (const { row, column, after } of patches) engine.set(sheet.id, row, column, after);
     }
@@ -81,6 +92,7 @@ await vm.runInContext(definitions + `
   assert.equal(app.formula.value, "=SUM(B1");
   controls.updateDrag({ row: 1, column: 1 });
   assert.equal(app.formula.value, "=SUM(B1:B2");
+  assert.equal(app.formulaReferences[0].bounds.bottom, 1);
   controls.finish(false);
   assert.equal(app.formula.value, "=SUM(");
   controls.pointerDown(down);

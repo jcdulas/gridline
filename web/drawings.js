@@ -181,7 +181,7 @@ async function readXlsxDrawing(zip, engine, sheet, drawing, worksheetPath, spati
         let config = metadata.chart;
         if (chartPath && metadata.native) {
           try { config = xlsxNativeSpatialEdits(metadata, await read(chartPath)); }
-          catch { /* The original Gridline settings remain usable. */ }
+          catch { /* The original Grids&Tabs settings remain usable. */ }
         }
         const chart = validateChart(config, engine);
         const empty = metadata.chartSheet && !Array.from({ length: engine.columns }, (_, index) => index)
@@ -189,7 +189,7 @@ async function readXlsxDrawing(zip, engine, sheet, drawing, worksheetPath, spati
         if (empty && !sheet.chart && !sheet.embeddedCharts?.length) sheet.chart = chart;
         else (sheet.embeddedCharts ??= []).push(validateEmbeddedChart({ ...position, chart }, engine));
         continue;
-      } catch { /* Read the native drawing if the Gridline settings are unusable. */ }
+      } catch { /* Read the native drawing if the Grids&Tabs settings are unusable. */ }
     }
     if (graphic) {
       const isEmpty = content.children.length === 1 && !Array.from({ length: engine.columns }, (_, index) => index)

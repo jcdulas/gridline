@@ -20,7 +20,9 @@ class XlsxXmlNode {
     return Object.values(this.xmlAttributes).map((attr) => ({ localName: attr.local, value: attr.value }));
   }
 
-  get textContent() { return this.text + this.children.map((node) => node.textContent).join(""); }
+  get textContent() {
+    return this.children.length ? this.text + this.children.map((node) => node.textContent).join("") : this.text;
+  }
 }
 
 async function* xlsxWorksheetNodes(zip, path) {

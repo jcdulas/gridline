@@ -1,4 +1,4 @@
-"""Package the local Gridline extension as a VSIX archive."""
+"""Package the local Grids&Tabs extension as a VSIX archive."""
 
 import json
 from pathlib import Path
@@ -23,6 +23,7 @@ def package():
     <DisplayName>{escape(manifest["displayName"])}</DisplayName>
     <Description>{escape(manifest["description"])}</Description>
     <License>extension/LICENSE.txt</License>
+    <Icon>extension/icon.png</Icon>
     <Properties>
       <Property Id="Microsoft.VisualStudio.Code.Engine" Value={quoteattr(manifest["engines"]["vscode"])} />
     </Properties>
@@ -32,6 +33,7 @@ def package():
   <Assets>
     <Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true" />
     <Asset Type="Microsoft.VisualStudio.Services.Content.Details" Path="extension/README.md" Addressable="true" />
+    <Asset Type="Microsoft.VisualStudio.Services.Icons.Default" Path="extension/icon.png" Addressable="true" />
     <Asset Type="Microsoft.VisualStudio.Services.Content.License" Path="extension/LICENSE.txt" Addressable="true" />
   </Assets>
 </PackageManifest>
@@ -42,6 +44,7 @@ def package():
   <Default Extension="js" ContentType="application/javascript" />
   <Default Extension="html" ContentType="text/html" />
   <Default Extension="md" ContentType="text/markdown" />
+  <Default Extension="png" ContentType="image/png" />
   <Default Extension="txt" ContentType="text/plain" />
   <Default Extension="vsixmanifest" ContentType="text/xml" />
 </Types>
@@ -49,14 +52,16 @@ def package():
     files = {
         "package.json": EXTENSION / "package.json",
         "extension.js": EXTENSION / "extension.js",
-        "gridline.html": ROOT / "gridline.html",
-        "README.md": ROOT / "README.md",
+        "gridsntabs.html": ROOT / "gridsntabs.html",
+        "README.md": EXTENSION / "README.md",
+        "icon.png": EXTENSION / "icon.png",
+        "gridsntabs-workbook.png": EXTENSION / "gridsntabs-workbook.png",
         "LICENSE.txt": ROOT / "LICENSE",
     }
     for source in files.values():
         if not source.is_file():
-            raise SystemExit(f"Missing {source.name}. Build Gridline before packaging the extension.")
-    output = ROOT / ".build" / f'gridline-{manifest["version"]}.vsix'
+            raise SystemExit(f"Missing {source.name}. Build Grids&Tabs before packaging the extension.")
+    output = ROOT / ".build" / f'{manifest["name"]}-{manifest["version"]}.vsix'
     output.parent.mkdir(exist_ok=True)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         archive.writestr("[Content_Types].xml", content_types)

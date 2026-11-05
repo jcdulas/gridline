@@ -1,45 +1,93 @@
 {
-  "name": "gridline",
-  "displayName": "Gridline",
+  "name": "gridsntabs",
+  "displayName": "Grids&Tabs",
   "description": "An offline spreadsheet editor for local workbooks and delimited text.",
-  "version": "0.1.0",
+  "version": "0.1.11",
   "publisher": "jcdulas",
   "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jcdulas/gridline.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jcdulas/gridline/issues"
+  },
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.96.0"
   },
   "categories": ["Other"],
   "extensionKind": ["ui"],
+  "activationEvents": ["onStartupFinished"],
   "main": "./extension.js",
   "capabilities": {
     "virtualWorkspaces": false,
     "untrustedWorkspaces": {
       "supported": false,
-      "description": "Gridline runs in local, trusted workspaces."
+      "description": "Grids&Tabs runs in local, trusted workspaces."
     }
   },
   "contributes": {
     "commands": [
       {
-        "command": "gridline.configureFileAssociations",
-        "category": "Gridline",
-        "title": "Configure File Associations"
+        "command": "gridsntabs.configureFileAssociations",
+        "category": "Grids&Tabs",
+        "title": "Choose Which Files Open in Grids&Tabs"
       }
     ],
+    "configuration": {
+      "title": "Grids&Tabs",
+      "properties": {
+        "gridsntabs.openXlsx": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "Open XLSX workbooks (.xlsx) in Grids&Tabs by default.",
+          "order": 1
+        },
+        "gridsntabs.openCsv": {
+          "type": "boolean",
+          "default": false,
+          "scope": "machine",
+          "description": "Open comma-separated files (.csv) in Grids&Tabs by default.",
+          "order": 2
+        },
+        "gridsntabs.openTsv": {
+          "type": "boolean",
+          "default": false,
+          "scope": "machine",
+          "description": "Open tab-separated files (.tsv) in Grids&Tabs by default.",
+          "order": 3
+        },
+        "gridsntabs.openTxt": {
+          "type": "boolean",
+          "default": false,
+          "scope": "machine",
+          "description": "Open text files (.txt) in Grids&Tabs when they contain tabular data. Other text opens in the standard text editor.",
+          "order": 4
+        }
+      }
+    },
+    "configurationDefaults": {
+      "workbench.editorAssociations": {
+        "*.xlsx": "gridsntabs.workbook",
+        "*.gridsntabs": "gridsntabs.workbook"
+      }
+    },
     "customEditors": [
       {
-        "viewType": "gridline.workbook",
-        "displayName": "Gridline",
+        "viewType": "gridsntabs.workbook",
+        "displayName": "Grids&Tabs",
         "selector": [
-          { "filenamePattern": "*.[xX][lL][sS][xX]" },
-          { "filenamePattern": "*.[gG][rR][iI][dD][lL][iI][nN][eE]" },
-          { "filenamePattern": "*.[cC][sS][vV]" },
-          { "filenamePattern": "*.[tT][sS][vV]" },
-          { "filenamePattern": "*.[tT][xX][tT]" },
-          { "filenamePattern": "*.[tT][eE][xX][tT]" },
-          { "filenamePattern": "*.[pP][rR][nN]" },
-          { "filenamePattern": "*.[dD][aA][tT]" },
-          { "filenamePattern": "*.[lL][oO][gG]" }
+          { "filenamePattern": "*.xlsx" },
+          { "filenamePattern": "*.gridsntabs" },
+          { "filenamePattern": "*.csv" },
+          { "filenamePattern": "*.tsv" },
+          { "filenamePattern": "*.txt" },
+          { "filenamePattern": "*.text" },
+          { "filenamePattern": "*.prn" },
+          { "filenamePattern": "*.dat" },
+          { "filenamePattern": "*.log" }
         ],
         "priority": "option"
       }

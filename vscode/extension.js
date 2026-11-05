@@ -5,12 +5,12 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const vscode = require("vscode");
 
-const viewType = "gridline.workbook";
+const viewType = "gridsntabs.workbook";
 const chunkSize = 2 * 1024 * 1024;
-const supportedFile = /\.(?:xlsx|gridline|csv|tsv|txt|text|prn|dat|log)$/i;
+const supportedFile = /\.(?:xlsx|gridsntabs|csv|tsv|txt|text|prn|dat|log)$/i;
 const fileVersionFields = ["ino", "size", "mtimeNs", "ctimeNs"];
 
-function webviewHtml(html) {
+function webviewHtml(html, channel) {
   const nonce = randomBytes(18).toString("base64");
   const policy = [
     "default-src 'none'",
@@ -20,7 +20,8 @@ function webviewHtml(html) {
     "style-src 'unsafe-inline'",
     "script-src 'nonce-" + nonce + "' 'wasm-unsafe-eval'"
   ].join("; ");
-  return html.replace('<html lang="en">', '<html lang="en" class="gridline-hosted">')
+  return html.replace('<html lang="en">',
+    '<html lang="en" class="gridsntabs-hosted" data-gridsntabs-channel="' + channel + '">')
     .replace("<head>", '<head><meta http-equiv="Content-Security-Policy" content="' + policy + '">')
     .replaceAll("<script>", '<script nonce="' + nonce + '">');
 }
@@ -79,7 +80,7 @@ class WorkbookSession {
     const destination = await vscode.window.showSaveDialog({
       defaultUri: vscode.Uri.file(path.join(directory, suggestion)),
       availableFileSystems: ["file"],
-      saveLabel: "Save Gridline Export"
+      saveLabel: "Save Grids&Tabs Export"
     });
     if (!destination) return false;
     if (destination.scheme !== "file" || destination.authority) throw new Error("Choose a local destination.");
@@ -109,7 +110,7 @@ class WorkbookSession {
 
   async prepareOutput(destination, size, overwrite) {
     if (this.output || !Number.isSafeInteger(size) || size < 0) throw new Error("Invalid save request.");
-    const temporary = path.join(path.dirname(destination), ".gridline-" + randomUUID() + ".tmp");
+    const temporary = path.join(path.dirname(destination), ".gridsntabs-" + randomUUID() + ".tmp");
     const handle = await fs.open(temporary, "wx", 0o600);
     this.output = { temporary, destination, handle, size, written: 0, overwrite };
     return true;
@@ -164,14 +165,110 @@ class WorkbookSession {
       case "write": return this.write(message.bytes);
       case "finishExport": return this.finishExport();
       case "cancelExport": return this.cancelExport();
-      default: throw new Error("Unknown Gridline request.");
+      default: throw new Error("Unknown Grids&Tabs request.");
     }
   }
 }
 
+const fileAssociationOptions = [
+  ["openXlsx", "*.xlsx"],
+  ["openCsv", "*.csv"],
+  ["openTsv", "*.tsv"],
+  ["openTxt", "*.txt"],
+];
+const previousEditorsKey = "previousFileEditors";
+
+async function syncFileAssociations(state) {
+  const scope = vscode.ConfigurationTarget.Global;
+  const settings = vscode.workspace.getConfiguration("gridsntabs");
+  const workbench = vscode.workspace.getConfiguration("workbench");
+  const associations = { ...workbench.inspect("editorAssociations")?.globalValue };
+  const previous = { ...state.get(previousEditorsKey) };
+  const changes = new Map();
+  const restored = [];
+  let remembered = false;
+
+  for (const [setting, pattern] of fileAssociationOptions) {
+    const current = associations[pattern];
+    const managed = Object.hasOwn(previous, pattern);
+    const choice = settings.inspect(setting)?.globalValue;
+
+    // XLSX already has a default association from the manifest. Only write
+    // a user setting when opting out or undoing a prior opt-out.
+    if (setting === "openXlsx" && choice === false) {
+      if (!managed) {
+        previous[pattern] = current ?? null;
+        remembered = true;
+      }
+      if (current !== undefined && current !== viewType) continue;
+      const prior = previous[pattern];
+      changes.set(pattern, prior && prior !== viewType ? prior : "default");
+      continue;
+    }
+    if (setting === "openXlsx" && choice === undefined) {
+      if (!managed && current && current !== viewType) {
+        previous[pattern] = current;
+        remembered = true;
+        await settings.update(setting, false, scope);
+      } else if (managed && current === "default" && [null, viewType].includes(previous[pattern])) {
+        changes.set(pattern, previous[pattern]);
+        restored.push(pattern);
+      } else if (managed && current && current === previous[pattern] && current !== viewType) {
+        changes.set(pattern, viewType);
+      }
+      continue;
+    }
+
+    // Reflect associations set manually with older versions in the new settings.
+    if (choice === undefined && !managed && current === viewType) {
+      previous[pattern] = null;
+      remembered = true;
+      await settings.update(setting, true, scope);
+    } else if (choice === true) {
+      if (!managed) {
+        previous[pattern] = current && current !== viewType ? current : null;
+        remembered = true;
+      }
+      if (current !== viewType) changes.set(pattern, viewType);
+    } else if (managed || choice === false) {
+      if (current === viewType) changes.set(pattern, previous[pattern] ?? null);
+      if (managed) restored.push(pattern);
+    }
+  }
+
+  if (remembered) await state.update(previousEditorsKey, previous);
+  if (changes.size) {
+    const latest = { ...workbench.inspect("editorAssociations")?.globalValue };
+    for (const [pattern, editor] of changes) {
+      if (latest[pattern] !== associations[pattern]) continue;
+      if (editor === null) delete latest[pattern];
+      else latest[pattern] = editor;
+    }
+    await workbench.update("editorAssociations", latest, scope);
+  }
+  if (restored.length) {
+    for (const pattern of restored) delete previous[pattern];
+    await state.update(previousEditorsKey, previous);
+  }
+}
+
 function activate(context) {
-  context.subscriptions.push(vscode.commands.registerCommand("gridline.configureFileAssociations", () =>
-    vscode.commands.executeCommand("workbench.action.openSettings", "@id:workbench.editorAssociations")));
+  let pending = Promise.resolve();
+  const updateFileAssociations = () => {
+    pending = pending.then(() => syncFileAssociations(context.globalState)).catch((error) => {
+      void vscode.window.showErrorMessage("Grids&Tabs could not update the default file editors. " + error.message);
+    });
+    return pending;
+  };
+  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((event) => {
+    if (fileAssociationOptions.some(([setting]) => event.affectsConfiguration("gridsntabs." + setting))) {
+      return updateFileAssociations();
+    }
+  }));
+  void updateFileAssociations();
+
+  context.subscriptions.push(vscode.commands.registerCommand("gridsntabs.configureFileAssociations", () =>
+    vscode.commands.executeCommand("workbench.action.openSettings", "@ext:jcdulas.gridsntabs")));
 
   context.subscriptions.push(vscode.window.registerCustomEditorProvider(viewType, {
     openCustomDocument(uri) {
@@ -182,13 +279,14 @@ function activate(context) {
     },
 
     async resolveCustomEditor(document, panel) {
-      const html = await fs.readFile(path.join(context.extensionPath, "gridline.html"), "utf8");
+      const html = await fs.readFile(path.join(context.extensionPath, "gridsntabs.html"), "utf8");
       const session = new WorkbookSession(document.uri);
+      const channel = randomBytes(16).toString("hex");
       let queue = Promise.resolve();
       let disposed = false;
       panel.webview.options = { enableScripts: true, localResourceRoots: [] };
       const listener = panel.webview.onDidReceiveMessage((message) => {
-        if (!Number.isSafeInteger(message?.id) || message.id < 1) return;
+        if (message?.channel !== channel || !Number.isSafeInteger(message.id) || message.id < 1) return;
         queue = queue.then(async () => {
           if (disposed) return;
           let reply;
@@ -203,7 +301,7 @@ function activate(context) {
           } catch (error) {
             reply = { id: message.id, error: error.message };
           }
-          if (!disposed) await panel.webview.postMessage(reply);
+          if (!disposed) await panel.webview.postMessage({ channel, ...reply });
           if (!disposed && !reply.error && message.type === "openAsText") panel.dispose();
         }).catch(() => {});
       });
@@ -212,7 +310,7 @@ function activate(context) {
         listener.dispose();
         void queue.then(() => Promise.allSettled([session.closeSource(), session.cancelExport()]));
       });
-      panel.webview.html = webviewHtml(html);
+      panel.webview.html = webviewHtml(html, channel);
     }
   }, { webviewOptions: { retainContextWhenHidden: true } }));
 }

@@ -1,4 +1,4 @@
-"""Build the C++ engine and embed all runtime assets in gridline.html."""
+"""Build the C++ engine and embed all runtime assets in gridsntabs.html."""
 
 import argparse
 import base64
@@ -14,8 +14,8 @@ WEB = ROOT / "web"
 SCRIPTS = (
     "engine.js", "dates.js", "grid.js", "ribbon.js", "colors.js", "files.js", "text-tables.js", "commands.js", "images.js", "tables.js", "interactions.js",
     "zip.js", "xlsx.js", "xlsx-stream.js", "drawings.js", "xlsx-images.js", "pivot.js", "xlsx-pivot.js", "chart3d.js", "trendlines.js", "chart.js",
-    "xlsx-spatial.js", "sample.js",
-    "host.js", "clipboard.js", "app.js",
+    "xlsx-spatial.js",
+    "host.js", "clipboard.js", "formula-colors.js", "app.js",
 )
 
 
@@ -77,7 +77,7 @@ def package_html(wasm):
         .replace("INLINE_LICENSES", license_text)
         .replace("INLINE_WASM", binary)
     )
-    destination = ROOT / "gridline.html"
+    destination = ROOT / "gridsntabs.html"
     destination.write_text(document, encoding="utf-8", newline="\n")
     print(f"Built {destination.name} ({destination.stat().st_size:,} bytes)")
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import vm from "node:vm";
 
-const html = await readFile(new URL("../gridline.html", import.meta.url), "utf8");
+const html = await readFile(new URL("../gridsntabs.html", import.meta.url), "utf8");
 const scripts = [...html.matchAll(/<script(?:[^>]*)>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
 const [wasm, vendor, app] = scripts;
 let download;
@@ -164,7 +164,7 @@ await vm.runInContext(vendor + "\n" + main + `
   assert.equal(await globalThis.downloadBlob().text(), alignedSource);
   engine.set(alignedSheet.id, 1, 0, "Alexandra Dupont");
   await saveWorkbook(engine, "Aligned", [alignedSheet]);
-  const savedText = await openWorkbook(new File([globalThis.downloadBlob()], "Aligned.gridline"));
+  const savedText = await openWorkbook(new File([globalThis.downloadBlob()], "Aligned.gridsntabs"));
   await exportOriginalText(savedText.engine, savedText.sheets[0]);
   const edited = await globalThis.downloadBlob().text();
   const editedRows = edited.split("\\r\\n");
@@ -222,7 +222,7 @@ await vm.runInContext(vendor + "\n" + main + `
   sheet.images = [validateImage({ row: 0, column: 6, width: 32, height: 24, placement: "cell", name: "Dot",
     data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==" }, engine)];
   await saveWorkbook(engine, "Test", [sheet]);
-  globalThis.roundtrip = await openWorkbook(new File([globalThis.downloadBlob()], "Test.gridline"));
+  globalThis.roundtrip = await openWorkbook(new File([globalThis.downloadBlob()], "Test.gridsntabs"));
   assert.equal(roundtrip.sheets[0].images[0].placement, "cell");
   assert.equal(roundtrip.sheets[0].embeddedCharts[0].chart.title, "Quarterly graph");
   assert.equal(roundtrip.sheets[0].embeddedCharts[3].chart.camera.zoom, 1.6);

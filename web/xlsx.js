@@ -17,10 +17,13 @@ function xlsxText(text) {
 }
 
 function decodeXlsxText(text) {
+  if (!text.includes("_x") && !text.includes("_X")) return text;
   return text.replace(/_x([\da-f]{4})_/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
 }
 
 function asCellText(text) {
+  const first = text.charCodeAt(0) | 32;
+  if (first >= 97 && first <= 122 && first !== 102 && first !== 116) return text;
   const typed = /^[=']|^\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\s*$|^(?:TRUE|FALSE)$/i.test(text);
   return typed || xlsxErrors.has(text) ? "'" + text : text;
 }
@@ -136,7 +139,30 @@ function readXlsxStyles(xml, date1904) {
   });
 }
 
-async function readXlsxSheet(zip, path, engine, sheet, sharedStrings, styles, cellImages) {
+function readXlsxAddress(reference, rows, columns) {
+  let index = 0;
+  let column = 0;
+  while (index < 3) {
+    const letter = reference.charCodeAt(index);
+    if (!(letter >= 65 && letter <= 90)) break;
+    column = column * 26 + letter - 64;
+    index++;
+  }
+  const rowStart = index;
+  if (!column || reference.length - rowStart > 7) return parseAddress(reference, rows, columns);
+  let row = 0;
+  for (; index < reference.length; index++) {
+    const digit = reference.charCodeAt(index) - 48;
+    if (digit < 0 || digit > 9) break;
+    row = row * 10 + digit;
+  }
+  if (index !== reference.length || index === rowStart) {
+    return parseAddress(reference, rows, columns);
+  }
+  return row >= 1 && row <= rows && column <= columns ? { row: row - 1, column: column - 1 } : null;
+}
+
+async function readXlsxSheet(zip, path, engine, sheet, sharedStrings, styles, cellImages, reportProgress) {
   const sharedFormulas = new Map();
   const pending = [];
   let count = 0;
@@ -162,18 +188,21 @@ async function readXlsxSheet(zip, path, engine, sheet, sharedStrings, styles, ce
       if (cell.localName !== "c") continue;
       const reference = cell.getAttribute("r") || cellName(rowIndex - 1, fallbackColumn);
       fallbackColumn++;
-      const formula = child(cell, "f");
-      const value = child(cell, "v")?.textContent;
-      const inline = child(cell, "is");
-      const address = parseAddress(reference, engine.rows, engine.columns);
+      let formula, value, inline;
+      for (const node of cell.children) {
+        if (node.localName === "f" && !formula) formula = node;
+        else if (node.localName === "v" && value === undefined) value = node.textContent;
+        else if (node.localName === "is" && !inline) inline = node;
+      }
+      const address = readXlsxAddress(reference, engine.rows, engine.columns);
       if (!address) {
-        if (formula || value !== undefined || inline) throw new Error(`XLSX cell ${reference} exceeds Gridline's worksheet limits.`);
+        if (formula || value !== undefined || inline) throw new Error(`XLSX cell ${reference} exceeds Grids&Tabs's worksheet limits.`);
         continue;
       }
       const { row, column } = address;
-      const style = styles[Number(cell.getAttribute("s"))];
+      const style = styles.length ? styles[Number(cell.getAttribute("s"))] : null;
       if (style) sheet.styles.set(cellKey(row, column, engine.columns), style);
-      const readImage = cellImages.get(Number(cell.getAttribute("vm")));
+      const readImage = cellImages.size ? cellImages.get(Number(cell.getAttribute("vm"))) : null;
       if (readImage) {
         try {
           const image = await readImage();
@@ -205,7 +234,10 @@ async function readXlsxSheet(zip, path, engine, sheet, sharedStrings, styles, ce
         else if (type === "b" && value !== undefined) text = value === "1" ? "TRUE" : "FALSE";
         if (text) engine.set(sheet.id, row, column, text);
       }
-      if (++count % 16384 === 0) await yieldToBrowser();
+      if (++count % 16384 === 0) {
+        reportProgress?.(count);
+        await yieldToBrowser();
+      }
     }
   }
   const xlsxDimensions = { rows: engine.rows, columns: 16384 };
@@ -218,7 +250,7 @@ async function readXlsxSheet(zip, path, engine, sheet, sharedStrings, styles, ce
   return { skippedImages, drawing };
 }
 
-async function openXlsx(file) {
+async function openXlsx(file, reportProgress) {
   const zip = await ZipArchive.open(file);
   const read = async (path) => readXml(await zip.text(path));
   const root = readRelationships(await read("_rels/.rels"), "");
@@ -255,7 +287,8 @@ async function openXlsx(file) {
     const sheetId = engine.addSheet(name);
     if (!sheetId) throw new Error("The workbook contains duplicate worksheet names.");
     const sheet = newSheetModel(sheetId, name);
-    const { skippedImages, drawing } = await readXlsxSheet(zip, rel.path, engine, sheet, strings, styles, cellImages);
+    const { skippedImages, drawing } = await readXlsxSheet(zip, rel.path, engine, sheet, strings, styles, cellImages,
+      reportProgress && ((count) => reportProgress(name, count)));
     if (skippedImages) skippedDrawings = true;
     try {
       if (await readXlsxDrawing(zip, engine, sheet, drawing, rel.path, spatial.charts, sourceNames)) skippedDrawings = true;

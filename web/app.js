@@ -1,9 +1,9 @@
-class GridlineApp {
+class GridsNTabsApp {
   constructor(engine) {
     this.engine = engine;
-    this.clipboardCache = new GridlineClipboard();
-    this.title = "Quarterly Sales";
-    this.sheets = buildSample(engine);
+    this.clipboardCache = new GridsNTabsClipboard();
+    this.title = "Untitled workbook";
+    this.sheets = [newSheetModel(engine.addSheet("Sheet 1"), "Sheet 1")];
     this.sheet = this.sheets[0];
     this.zoom = 100;
     this.gridlines = true;
@@ -17,8 +17,10 @@ class GridlineApp {
     this.ribbonTab = "Home";
     this.canvas = document.getElementById("grid");
     this.formula = document.getElementById("formula");
+    this.formulaPreview = document.getElementById("formula-preview");
     this.nameBox = document.getElementById("name-box");
     this.editor = document.getElementById("cell-editor");
+    this.editorPreview = document.getElementById("cell-editor-preview");
     this.dialog = document.getElementById("dialog");
     this.dialogContent = document.getElementById("dialog-content");
     this.view = new WorksheetView(this.canvas, this);
@@ -32,17 +34,19 @@ class GridlineApp {
 
   status(message = "Ready") {
     const target = document.getElementById("status");
-    const dot = document.createElement("span");
-    dot.className = "ready-dot";
-    target.replaceChildren(dot, document.createTextNode(message));
-    target.title = message;
+    target.textContent = message;
+    target.toggleAttribute("data-visible", message !== "Ready");
+    clearTimeout(this.statusTimer);
+    if (message !== "Ready") {
+      this.statusTimer = setTimeout(() => target.removeAttribute("data-visible"), 4000);
+    }
   }
 
   refresh() {
-    document.title = `${this.title} — Gridline`;
+    document.title = `${this.title} — Grids&Tabs`;
     document.getElementById("workbook-title").textContent = this.title + (this.dirty ? " •" : "");
     const saveSource = document.getElementById("save-source");
-    saveSource.hidden = !gridlineHost;
+    saveSource.hidden = !gridsNTabsHost;
     saveSource.disabled = !this.hostedSource;
     const tabs = document.getElementById("sheet-tabs");
     const key = JSON.stringify(this.sheets.map(({ id, name }) => [id, name]));
@@ -81,27 +85,12 @@ class GridlineApp {
     this.nameBox.value = cellCount(bounds) === 1 ? address :
       `${cellName(bounds.top, bounds.left)}:${cellName(bounds.bottom, bounds.right)}`;
     if (!this.edit) this.formula.value = this.editableText(this.active());
+    this.refreshFormulaColors();
     const activeCell = document.getElementById("active-cell");
     activeCell.setAttribute("aria-rowindex", row + 1);
     activeCell.setAttribute("aria-colindex", column + 1);
     const value = this.engine.value(this.sheet.id, row, column);
     activeCell.textContent = `${address} ${cellDisplay(value, this.style(this.active())) || "empty"}`;
-    const areas = this.selectionAreas();
-    const count = areas.reduce((total, area) => total + cellCount(area), 0);
-    let summary = count > 1 ? `${count.toLocaleString("en-US")} cells selected` : "";
-    if (areas.length > 1) summary = `${areas.length} ranges · ${summary}`;
-    if (areas.length === 1 && count > 1 && count <= 500) {
-      let numbers = 0;
-      let sum = 0;
-      for (const cell of rectangle(bounds)) {
-        const value = this.engine.value(this.sheet.id, cell.row, cell.column);
-        if (value.kind !== ValueKind.number) continue;
-        numbers++;
-        sum += value.number;
-      }
-      if (numbers) summary = `Count ${numbers}   ·   Sum ${sum.toLocaleString("en-US", { maximumFractionDigits: 6 })}`;
-    }
-    document.getElementById("selection-summary").textContent = summary;
     if (!this.gridControls?.drag) this.refreshTableSuggestion();
     this.refreshToolbar();
     this.view.requestDraw();
@@ -126,13 +115,6 @@ class GridlineApp {
       this.tableSuggestion = isWholeHeader ? null : detectedTable(this, cell);
       this.tableSheet = this.sheet;
       this.tableRevision = this.contentRevision;
-    }
-    const button = document.getElementById("table-suggestion");
-    button.hidden = !this.tableSuggestion;
-    if (this.tableSuggestion) {
-      const axis = this.tableSuggestion.axis === "column" ? "column headers" : "row headers";
-      button.textContent = `Table · ${axis}`;
-      button.title = `Select suggested table ${rangeAddress(this.tableSuggestion)}`;
     }
     this.view.requestDraw();
   }
@@ -267,6 +249,14 @@ class GridlineApp {
       this.editor.focus();
       this.editor.setSelectionRange(text.length, text.length);
     }
+    this.refreshFormulaColors();
+  }
+
+  refreshFormulaColors() {
+    this.formulaReferences = formulaReferences(this.formula.value, this.sheet.name, this.engine);
+    showFormulaPreview(this.formula, this.formulaPreview, this.formulaReferences);
+    showFormulaPreview(this.editor, this.editorPreview, this.formulaReferences);
+    this.view.requestDraw();
   }
 
   get editInput() { return this.edit?.mode === "inline" ? this.editor : this.formula; }
@@ -305,7 +295,7 @@ class GridlineApp {
     input.focus({ preventScroll: true });
     input.setSelectionRange(selectionStart, selectionEnd);
     this.positionEditor();
-    this.view.requestDraw();
+    this.refreshFormulaColors();
   }
 
   positionEditor() {
@@ -323,9 +313,11 @@ class GridlineApp {
     }
     const preferred = formula ? rect.width : Math.max(rect.width, 110, Math.min(410, this.editor.value.length * 7 + 22));
     const width = Math.min(this.view.width - rect.x, preferred);
-    Object.assign(this.editor.style, {
+    const position = {
       left: `${rect.x}px`, top: `${rect.y}px`, width: `${width}px`, height: `${rect.height}px`
-    });
+    };
+    Object.assign(this.editor.style, position);
+    Object.assign(this.editorPreview.style, position);
   }
 
   commitEdit(cancel = false) {
@@ -564,8 +556,7 @@ class GridlineApp {
 
   setZoom(value) {
     this.zoom = clamp(value, 60, 160);
-    document.getElementById("zoom-slider").value = this.zoom;
-    document.getElementById("zoom-value").textContent = this.zoom + "%";
+    this.status(`Zoom ${this.zoom}%`);
     this.view.requestDraw();
   }
 
@@ -637,7 +628,6 @@ class GridlineApp {
       } catch (error) { this.status(error.message); }
       this.canvas.focus();
     });
-    document.getElementById("zoom-slider").addEventListener("input", (event) => this.setZoom(Number(event.target.value)));
     this.dialog.addEventListener("cancel", (event) => {
       if (this.busy) event.preventDefault();
     });
@@ -659,29 +649,47 @@ class GridlineApp {
       else if (this.edit.mode === "inline") {
         this.edit.mode = "formula";
         this.editor.hidden = true;
+        this.refreshFormulaColors();
       }
     });
     for (const input of [this.editor, this.formula]) {
       input.addEventListener("keydown", (event) => this.editKey(event));
       input.addEventListener("input", () => {
-        if (this.edit?.reference) {
-          this.edit.reference = null;
-          this.view.requestDraw();
+        if (this.edit?.reference) this.edit.reference = null;
+        if (input === this.editor) {
+          this.formula.value = this.editor.value;
+          this.positionEditor();
         }
+        this.refreshFormulaColors();
       });
+      const preview = input === this.editor ? this.editorPreview : this.formulaPreview;
+      input.addEventListener("scroll", () => syncFormulaPreview(input, preview));
     }
-    this.editor.addEventListener("input", () => {
-      this.formula.value = this.editor.value;
-      this.positionEditor();
-    });
     this.bindGrid();
     this.bindFiles();
     document.addEventListener("keydown", (event) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || this.dialog.open) return;
-      if (event.key.toLowerCase() === "s") {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const key = event.key.toLowerCase();
+      if (key === "a" && !event.shiftKey && !event.isComposing && !event.defaultPrevented) {
+        // Keep VS Code's webview listener from forwarding Select All to the host.
+        if (event.target.isContentEditable || event.target.closest?.("input, textarea, select")) {
+          event.stopPropagation();
+          return;
+        }
+        if (this.dialog.open || this.openedChart || this.sheet.chart) return;
+        event.preventDefault();
+        event.stopPropagation();
+        window.getSelection()?.removeAllRanges();
+        if (this.busy || !this.commitEdit()) return;
+        this.gridControls.selectHeader("column", 0, this.engine.columns - 1);
+        this.canvas.focus();
+        return;
+      }
+      if (this.dialog.open) return;
+      if (key === "s") {
         event.preventDefault();
         void this.runAction("save");
-      } else if (event.key.toLowerCase() === "f" && event.target === this.canvas) {
+      } else if (key === "f" && event.target === this.canvas) {
         event.preventDefault();
         void this.runAction("find");
       }
@@ -751,9 +759,7 @@ class GridlineApp {
     try {
       if (modifier && key.toLowerCase() === "z") this.history(event.shiftKey);
       else if (modifier && key.toLowerCase() === "y") this.history(true);
-      else if (modifier && key.toLowerCase() === "a") {
-        this.select({ row: 0, column: 0 }, { row: this.engine.rows - 1, column: this.engine.columns - 1 }, false);
-      } else if (modifier && ["d", "r"].includes(key.toLowerCase())) {
+      else if (modifier && ["d", "r"].includes(key.toLowerCase())) {
         this.fillSelection(key.toLowerCase() === "d" ? "row" : "column");
       } else if (event.code === "Space" && (modifier || event.shiftKey)) {
         const axis = modifier ? "column" : "row";
@@ -859,7 +865,7 @@ class GridlineApp {
     if (this.clipboardPromptRequested) return false;
     this.clipboardPromptRequested = true;
     try {
-      const key = "gridline:clipboard-prompt-requested";
+      const key = "gridsntabs:clipboard-prompt-requested";
       if (sessionStorage.getItem(key)) return false;
       sessionStorage.setItem(key, "1");
     } catch {
@@ -1050,7 +1056,11 @@ class GridlineApp {
   }
 
   async loadLocalWorkbook(file) {
-    const workbook = /\.xlsx$/i.test(file.name) ? await openXlsx(file) : await openWorkbook(file);
+    const workbook = /\.xlsx$/i.test(file.name)
+      ? await openXlsx(file, (sheet, count) => {
+        this.dialogContent.textContent = `Reading ${sheet} · ${count.toLocaleString("en-US")} cells…`;
+      })
+      : await openWorkbook(file);
     this.replaceWorkbook(workbook);
     this.status(`Opened ${file.name}${workbook.notice ? " · " + workbook.notice : ""}`);
   }
@@ -1063,7 +1073,7 @@ class GridlineApp {
       if (/\.xlsx$/i.test(source.name)) {
         extendedRows = await saveXlsx(this.engine, this.title, this.sheets,
           (chart) => this.chartView.snapshot(chart), true);
-      } else if (/\.gridline$/i.test(source.name)) {
+      } else if (/\.gridsntabs$/i.test(source.name)) {
         await saveWorkbook(this.engine, this.title, this.sheets, true);
       } else {
         if (this.sheets.length !== 1 || this.sheets[0] !== source.sheet) {
@@ -1141,14 +1151,14 @@ class GridlineApp {
     }
     const list = this.actionList([
       ["new", "New workbook", "Start with a blank worksheet.", "sheet"],
-      ["open", "Open workbook", "Open an XLSX (.xlsx) or Gridline (.gridline) workbook.", "folder"],
-      ["save", "Save Gridline workbook", "Save all worksheets and formulas in the native format.", "save"],
+      ["open", "Open workbook", "Open an XLSX (.xlsx) or Grids&Tabs (.gridsntabs) workbook.", "folder"],
+      ["save", "Save Grids&Tabs workbook", "Save all worksheets and formulas in the native format.", "save"],
       ["save-xlsx", "Save as XLSX (.xlsx)", "Save the workbook with its worksheet tabs.", "download"],
       ["import", "Import delimited data", "Load a CSV, TSV, or delimited text file into a new worksheet.", "upload"],
       ["export", "Export CSV", "Export calculated values from the current sheet or selected range.", "download"],
       ...(!this.sheet.chart ? [["save-delimited", "Save delimited data…",
         this.sheet.textImport ? "Keep the source file's separator or column alignment." : "Save the current worksheet as CSV.", "download"]] : []),
-      ...(gridlineHost ? [
+      ...(gridsNTabsHost ? [
         ["rename-workbook", "Rename workbook", "Change the name used when exporting the workbook.", "file"],
         ["help", "Help and shortcuts", "See the controls and keyboard shortcuts.", "help"]
       ] : [])
@@ -1163,10 +1173,10 @@ class GridlineApp {
   }
 
   help() {
-    const body = this.showDialog("Using Gridline");
+    const body = this.showDialog("Using Grids&Tabs");
     body.innerHTML = `<p>Each worksheet has 8,000,000 addressable rows and 400 columns. Use the name box to jump to <code>OJ8000000</code> or select a range such as <code>B2:F20</code>.</p>
       <dl class="shortcut-list"><dt>Move or extend a selection</dt><dd><kbd>Arrow keys</kbd> / <kbd>Shift + Arrow</kbd></dd>
-      <dt>Edit the active cell</dt><dd><kbd>F2</kbd> / Double-click</dd><dt>Save a Gridline workbook</dt><dd><kbd>Ctrl / ⌘ + S</kbd></dd>
+      <dt>Edit the active cell</dt><dd><kbd>F2</kbd> / Double-click</dd><dt>Save a Grids&amp;Tabs workbook</dt><dd><kbd>Ctrl / ⌘ + S</kbd></dd>
       <dt>Undo / redo</dt><dd><kbd>Ctrl / ⌘ + Z</kbd> / <kbd>Ctrl / ⌘ + Y</kbd></dd>
       <dt>Copy, cut, or paste</dt><dd><kbd>Ctrl / ⌘ + C</kbd> / <kbd>X</kbd> / <kbd>V</kbd></dd>
       <dt>Select a column or row</dt><dd><kbd>Ctrl + Space</kbd> / <kbd>Shift + Space</kbd></dd>
@@ -1174,9 +1184,9 @@ class GridlineApp {
       <dt>Fill down or right</dt><dd><kbd>Ctrl + D</kbd> / <kbd>Ctrl + R</kbd></dd></dl>
       <p>Drag a header separator to resize. Double-click it to fit the contents. Use Ctrl-click on headers to resize several at once.</p>
       <p>Drag the selection handle to extend dates, weekday names, or number patterns. Click the green table corner to select a detected table.</p>
-      <p>Drop an XLSX workbook, CSV, TSV, text file, or image into the worksheet. Gridline detects tables in text files. Right-click charts and pictures to choose their placement.</p>
+      <p>Drop an XLSX workbook, CSV, TSV, text file, or image into the worksheet. Grids&amp;Tabs detects tables in text files. Right-click charts and pictures to choose their placement.</p>
       <p>Start formulas with <code>=</code>. Try <code>=SUM(A:A)</code>, <code>=IF(B2&gt;0,"Yes","No")</code>, or <code>='Sales overview'!$B$6</code>. Function arguments use commas.</p>
-      <p>Gridline can save and reopen XLSX sheets with up to 8,000,000 rows. Some XLSX readers may truncate or reject sheets above 1,048,576 rows. Use Insert Function to see the supported functions.</p>`;
+      <p>Grids&amp;Tabs can save and reopen XLSX sheets with up to 8,000,000 rows. Some XLSX readers may truncate or reject sheets above 1,048,576 rows. Use Insert Function to see the supported functions.</p>`;
   }
 
   functionPicker(filter = "") {
@@ -1381,7 +1391,7 @@ class GridlineApp {
           if (!await saveWorkbook(this.engine, this.title, this.sheets)) return;
           this.dirty = false;
           this.refresh();
-          this.status("Gridline workbook saved");
+          this.status("Grids&Tabs workbook saved");
         }),
         "save-xlsx": () => this.work("Saving XLSX workbook", async () => {
           const extendedRows = await saveXlsx(this.engine, this.title, this.sheets, (chart) => this.chartView.snapshot(chart));
@@ -1577,7 +1587,7 @@ class GridlineApp {
       await writeSystemClipboard(navigator.clipboard, data);
     } catch {
       this.canvas.focus();
-      this.status(cut ? "Press Ctrl+X or ⌘+X to cut." : "Cells copied in Gridline");
+      this.status(cut ? "Press Ctrl+X or ⌘+X to cut." : "Cells copied in Grids&Tabs");
       return;
     }
     if (cut) {
@@ -1591,13 +1601,15 @@ class GridlineApp {
 
 initializeIcons(document);
 WorkbookEngine.load().then((engine) => {
-  const app = new GridlineApp(engine);
+  const app = new GridsNTabsApp(engine);
   document.getElementById("engine-state").textContent = "Offline · WASM";
   app.status();
   void openHostedFile(app);
 }).catch((error) => {
   document.querySelector(".engine-badge").classList.add("failure");
   document.getElementById("engine-state").textContent = "Engine unavailable";
-  document.getElementById("status").textContent = "The calculation engine could not start. " + error.message;
+  const status = document.getElementById("status");
+  status.textContent = "The calculation engine could not start. " + error.message;
+  status.setAttribute("data-visible", "");
   console.error(error);
 });

@@ -346,8 +346,9 @@ class WorksheetView {
 
   drawInteraction() {
     const ctx = this.ctx;
-    const reference = this.model.edit?.reference;
-    if (reference) this.drawSelection(reference.bounds, "#2962bd", "#2962bd16");
+    for (const { bounds, color } of this.model.formulaReferences || []) {
+      if (bounds) this.drawSelection(bounds, color, color + "14");
+    }
     const filter = this.model.sheet.filter;
     if (filter) {
       const rect = filter.table.axis === "column" ? this.cellRect(filter.table.top, filter.field)
